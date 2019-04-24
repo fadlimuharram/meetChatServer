@@ -1,4 +1,5 @@
 const userAction = require("./action/UserAction");
+const messageAction = require("./action/MessageAction");
 const auth = require("./middleware/auth");
 
 const prefix = "/api/v1";
@@ -11,4 +12,5 @@ module.exports = function(app) {
     auth,
     userAction.getFriendRecommendataion
   );
+  app.get(prefix + "/messages/:idreceiver", auth, messageAction.index);
 };

@@ -9,6 +9,7 @@ require("dotenv").config();
 const port = process.env.PORT || 3000;
 const jwt = require("jsonwebtoken");
 const path = require("path");
+const socketIoJWT = require("socketio-jwt");
 console.log(__dirname);
 
 app.use("/static", express.static(path.join(__dirname, "public")));
@@ -45,11 +46,43 @@ global.db = db;
 
 const route = require("./route")(app);
 
+io.use(
+  socketIoJWT.authorize({
+    secret: process.env.APP_KEY_SECRET,
+    handshake: true
+  })
+);
+
+const user = {};
+
+const MessageController = require("./controller/MessageController");
+
 io.on("connection", socket => {
-  console.log("hello anda berhasil konek");
+  console.log(socket.decoded_token);
+  socket.id = socket.decoded_token.id;
+  user[socket.id] = socket;
+  console.log("hello anda berhasil konek : ", socket.id);
   socket.on("chat message", msg => {
     console.log(msg);
     io.emit("chat messages", msg);
+  });
+  socket.join("tesroom");
+
+  socket.on("sendMessage", dataMessage => {
+    console.log(dataMessage);
+    if (user[dataMessage.id]) {
+      user[dataMessage.id].emit("getMessage", dataMessage.message);
+    }
+
+    const data = {
+      type: "text",
+      message: dataMessage.message
+    };
+    MessageController.create(socket.id, dataMessage.id, data);
+  });
+
+  socket.on("disconnect", () => {
+    console.log(" diskoneksi");
   });
 });
 
