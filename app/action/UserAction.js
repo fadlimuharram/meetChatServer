@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../../models").User;
 const Sequelize = require("sequelize");
 const Op = Sequelize.Op;
+const fs = require("fs");
 
 class UserAction {
   static generateJWT(username, email, id) {
@@ -126,6 +127,7 @@ class UserAction {
   }
 
   static async getFriendRecommendataion(req, res) {
+    console.log(__dirname);
     try {
       const recommendation = await User.findAll({
         where: {
@@ -139,6 +141,68 @@ class UserAction {
         data: recommendation
       });
     } catch (e) {}
+  }
+
+  static async changeCover(req, res) {
+    if (req.file) {
+      try {
+        const user = await User.findAll({
+          where: {
+            id: {
+              [Op.eq]: req.user.id
+            }
+          }
+        });
+
+        if (user[0].cover !== "no_avatar.jpg") {
+          console.log("curr-->", user[0].cover);
+          const uploadpath = __dirname + "/../public/uploads/" + user[0].cover;
+          console.log(uploadpath + user[0].cover);
+          fs.exists(uploadpath, exists => {
+            if (exists) {
+              fs.unlink(uploadpath, err => {
+                if (err) console.log(err);
+              });
+              console.log("yaaa");
+            } else {
+              console.log("nooo");
+            }
+          });
+          // await fs.unlink(__dirname + "/public/uploads/" + user[0].cover);
+        }
+
+        await User.update(
+          { cover: req.file.filename },
+          {
+            where: {
+              id: req.user.id
+            }
+          }
+        );
+
+        const updatedUser = await User.findAll({
+          where: {
+            id: {
+              [Op.eq]: req.user.id
+            }
+          }
+        });
+
+        res.send({
+          user: updatedUser[0],
+          data: req.file
+        });
+      } catch (e) {
+        console.log(e);
+        return res.send({
+          status: 0
+        });
+      }
+    } else {
+      res.send({
+        condition: "error"
+      });
+    }
   }
 }
 

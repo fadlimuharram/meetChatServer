@@ -54,34 +54,67 @@ io.use(
 );
 
 const user = {};
-
+let idConnectedUser = [];
 const MessageController = require("./controller/MessageController");
 
 io.on("connection", socket => {
   console.log(socket.decoded_token);
   socket.id = socket.decoded_token.id;
   user[socket.id] = socket;
-  console.log("hello anda berhasil konek : ", socket.id);
-  socket.on("chat message", msg => {
-    console.log(msg);
-    io.emit("chat messages", msg);
+  idConnectedUser.push({
+    id: socket.id
   });
-  socket.join("tesroom");
+
+  console.log("hello anda berhasil konek : ", socket.id);
+
+  socket.broadcast.emit("online_users", idConnectedUser);
 
   socket.on("sendMessage", dataMessage => {
-    console.log(dataMessage);
-    if (user[dataMessage.id]) {
-      user[dataMessage.id].emit("getMessage", dataMessage.message);
+    var data = {};
+    if (dataMessage.type === "file") {
+      var base64Data = dataMessage.base64source.replace(
+        /^data:image\/jpeg;base64,/,
+        ""
+      );
+      console.log(__dirname);
+      var crypto = require("crypto");
+      var r = crypto.randomBytes(10).toString("hex");
+      var filename = r + Date.now() + ".jpg";
+      require("fs").writeFile(
+        __dirname + "/public/uploads/" + filename,
+        base64Data,
+        "base64",
+        function(err) {
+          console.log(err);
+        }
+      );
+
+      user[socket.id].emit("conditionFile", filename);
+
+      data = {
+        message: filename,
+        type: "picture"
+      };
+
+      MessageController.create(socket.id, dataMessage.id, data);
+    } else if (dataMessage.type === "text") {
+      data = {
+        type: "text",
+        message: dataMessage.message
+      };
+      MessageController.create(socket.id, dataMessage.id, data);
     }
 
-    const data = {
-      type: "text",
-      message: dataMessage.message
-    };
-    MessageController.create(socket.id, dataMessage.id, data);
+    console.log("---dt-->", data);
+
+    if (user[dataMessage.id] && data) {
+      user[dataMessage.id].emit("getMessage", data);
+    }
   });
 
   socket.on("disconnect", () => {
+    idConnectedUser = idConnectedUser.filter(val => val.id !== socket.id);
+    socket.broadcast.emit("online_users", idConnectedUser);
     console.log(" diskoneksi");
   });
 });

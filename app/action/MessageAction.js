@@ -13,6 +13,13 @@ class MessageAction {
       data: message[0]
     });
   }
+
+  static async messagaConnection(req, res) {
+    const messages = await MessageController.messageConnection(req.user.id);
+    return res.send({
+      data: messages[0]
+    });
+  }
 }
 
 module.exports = MessageAction;
